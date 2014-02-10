@@ -26,6 +26,8 @@
 #define kMaxArrowRadius     7
 #define kMaxDistance        53
 
+#define SYSTEM_VERSION_GREATER_THAN_OR_EQUAL_TO(v)  ([[[UIDevice currentDevice] systemVersion] compare:v options:NSNumericSearch] != NSOrderedAscending)
+
 @interface ODRefreshControl ()
 
 @property (nonatomic, readwrite) BOOL refreshing;
@@ -131,6 +133,10 @@ static inline CGFloat lerp(CGFloat a, CGFloat b, CGFloat p)
 {
     _tintColor = tintColor;
     _shapeLayer.fillColor = [_tintColor CGColor];
+    if ([_activity respondsToSelector:@selector(setColor:)]) {
+        [(UIActivityIndicatorView *)_activity setColor:tintColor];
+    }
+    
 }
 
 - (void)setActivityIndicatorViewStyle:(UIActivityIndicatorViewStyle)activityIndicatorViewStyle
@@ -148,35 +154,34 @@ static inline CGFloat lerp(CGFloat a, CGFloat b, CGFloat p)
     return 0;
 }
 
-- (void)setActivityIndicatorViewColor:(UIColor *)activityIndicatorViewColor
-{
-    if ([_activity isKindOfClass:[UIActivityIndicatorView class]] && [_activity respondsToSelector:@selector(setColor:)]) {
-        [(UIActivityIndicatorView *)_activity setColor:activityIndicatorViewColor];
-    }
-}
-
-- (UIColor *)activityIndicatorViewColor
-{
-    if ([_activity isKindOfClass:[UIActivityIndicatorView class]] && [_activity respondsToSelector:@selector(color)]) {
-        return [(UIActivityIndicatorView *)_activity color];
-    }
-    return nil;
-}
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context
 {
-    if ([keyPath isEqualToString:@"contentInset"]) {
-        if (!_ignoreInset) {
+    NSInteger iOS7Value = 60.0f;
+    
+    if ([keyPath isEqualToString:@"contentInset"])
+        {
+        if (!_ignoreInset)
+            {
             self.originalContentInset = [[change objectForKey:@"new"] UIEdgeInsetsValue];
-            self.frame = CGRectMake(0, -(kTotalViewHeight + self.scrollView.contentInset.top), self.scrollView.frame.size.width, kTotalViewHeight);
-        }
+            
+            if(SYSTEM_VERSION_GREATER_THAN_OR_EQUAL_TO(@"7.0"))
+                {
+                
+                self.frame = CGRectMake(0, -(kTotalViewHeight + self.scrollView.contentInset.top) + iOS7Value, self.scrollView.frame.size.width, kTotalViewHeight);
+                
+                } else {
+                    
+                    self.frame = CGRectMake(0, -(kTotalViewHeight + self.scrollView.contentInset.top), self.scrollView.frame.size.width, kTotalViewHeight);
+                }
+            }
         return;
-    }
+        }
     
     if (!self.enabled || _ignoreOffset) {
         return;
     }
-
+    
     CGFloat offset = [[change objectForKey:@"new"] CGPointValue].y + self.originalContentInset.top;
     
     if (_refreshing) {
@@ -187,9 +192,9 @@ static inline CGFloat lerp(CGFloat a, CGFloat b, CGFloat p)
             [CATransaction setValue:(id)kCFBooleanTrue forKey:kCATransactionDisableActions];
             _shapeLayer.position = CGPointMake(0, kMaxDistance + offset + kOpenedViewHeight);
             [CATransaction commit];
-
+            
             _activity.center = CGPointMake(floor(self.frame.size.width / 2), MIN(offset + self.frame.size.height + floor(kOpenedViewHeight / 2), self.frame.size.height - kOpenedViewHeight/ 2));
-
+            
             _ignoreInset = YES;
             _ignoreOffset = YES;
             
@@ -226,38 +231,20 @@ static inline CGFloat lerp(CGFloat a, CGFloat b, CGFloat p)
         }
         return;
     } else {
-        // Check if we can trigger a new refresh and if we can draw the control
-        BOOL dontDraw = NO;
+        // Check if we can trigger a new refresh
         if (!_canRefresh) {
             if (offset >= 0) {
-                // We can refresh again after the control is scrolled out of view
                 _canRefresh = YES;
                 _didSetInset = NO;
             } else {
-                dontDraw = YES;
+                return;
             }
         } else {
             if (offset >= 0) {
-                // Don't draw if the control is not visible
-                dontDraw = YES;
+                return;
             }
         }
-        if (offset > 0 && _lastOffset > offset && !self.scrollView.isTracking) {
-            // If we are scrolling too fast, don't draw, and don't trigger unless the scrollView bounced back
-            _canRefresh = NO;
-            dontDraw = YES;
-        }
-        if (dontDraw) {
-            _shapeLayer.path = nil;
-            _shapeLayer.shadowPath = nil;
-            _arrowLayer.path = nil;
-            _highlightLayer.path = nil;
-            _lastOffset = offset;
-            return;
-        }
     }
-    
-    _lastOffset = offset;
     
     BOOL triggered = NO;
     
@@ -409,13 +396,13 @@ static inline CGFloat lerp(CGFloat a, CGFloat b, CGFloat p)
         
         _activity.alpha = 1;
         _activity.layer.transform = CATransform3DMakeScale(1, 1, 1);
-
+        
         CGPoint offset = self.scrollView.contentOffset;
         _ignoreInset = YES;
         [self.scrollView setContentInset:UIEdgeInsetsMake(kOpenedViewHeight + self.originalContentInset.top, self.originalContentInset.left, self.originalContentInset.bottom, self.originalContentInset.right)];
         _ignoreInset = NO;
         [self.scrollView setContentOffset:offset animated:NO];
-
+        
         self.refreshing = YES;
         _canRefresh = NO;
     }
