@@ -62,7 +62,7 @@ static inline CGFloat lerp(CGFloat a, CGFloat b, CGFloat p)
         self.originalContentInset = scrollView.contentInset;
         
         self.autoresizingMask = UIViewAutoresizingFlexibleWidth;
-        [scrollView addSubview:self];
+        [scrollView insertSubview:self atIndex:0];
         [scrollView addObserver:self forKeyPath:@"contentOffset" options:NSKeyValueObservingOptionNew context:nil];
         [scrollView addObserver:self forKeyPath:@"contentInset" options:NSKeyValueObservingOptionNew context:nil];
         
@@ -157,7 +157,6 @@ static inline CGFloat lerp(CGFloat a, CGFloat b, CGFloat p)
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context
 {
-    NSInteger iOS7Value = 60.0f;
     
     if ([keyPath isEqualToString:@"contentInset"])
         {
@@ -167,6 +166,13 @@ static inline CGFloat lerp(CGFloat a, CGFloat b, CGFloat p)
             
             if(SYSTEM_VERSION_GREATER_THAN_OR_EQUAL_TO(@"7.0"))
                 {
+                
+                UIInterfaceOrientation orientation = [[UIApplication sharedApplication] statusBarOrientation];
+                NSInteger iOS7Value = 0.0f;
+                if (UIInterfaceOrientationIsLandscape(orientation))
+                    {
+                    iOS7Value = 0.0f;
+                    }
                 
                 self.frame = CGRectMake(0, -(kTotalViewHeight + self.scrollView.contentInset.top) + iOS7Value, self.scrollView.frame.size.width, kTotalViewHeight);
                 
